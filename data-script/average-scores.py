@@ -24,20 +24,19 @@ for f in args.files:
   try:
     with open(f, 'r') as infile:
       for line in infile:
-        m = finalbleu_re.search(line.strip())
-        if m:
-          my_vals.append(float(m.group(1))) 
+        if m := finalbleu_re.search(line.strip()):
+          my_vals.append(float(m[1]))
   except:
-    print('error opening {}'.format(f))
+    print(f'error opening {f}')
     sys.exit(1)
   if not vals:
     if not reduce_map:
       reduce_map = {x: x for x in range(len(my_vals))}
-      reduce_count = [1 for x in my_vals]
+      reduce_count = [1 for _ in my_vals]
       reduce_idxs = [[x] for x in range(len(my_vals))]
     vals = [0] * len(reduce_idxs)
   if len(my_vals) != len(reduce_map):
-    print('mismatched lengths {} != {} in {}'.format(len(reduce_map), len(my_vals), f))
+    print(f'mismatched lengths {len(reduce_map)} != {len(my_vals)} in {f}')
     sys.exit(1)
   for i, v in enumerate(my_vals):
     vals[reduce_map[i]] += v

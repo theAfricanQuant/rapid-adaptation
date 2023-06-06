@@ -19,12 +19,10 @@ def get_bleus_and_times(fname, dev_id, test_id):
     with open(fname, 'r') as f:
       for line in f:
         line = line.strip()
-        m = re.search(final_bleu_re, line)
-        if m:
-          ret.append(float(m.group(1)))
-        m = re.search(time_re, line)
-        if m:
-          last_time = float(m.group(1))*24 + float(m.group(2)) + float(m.group(3))/60
+        if m := re.search(final_bleu_re, line):
+          ret.append(float(m[1]))
+        if m := re.search(time_re, line):
+          last_time = float(m[1]) * 24 + float(m[2]) + float(m[3]) / 60
     return ret[dev_id], ret[test_id], last_time
   except:
     return None, None, None
@@ -39,31 +37,34 @@ def create_table(header, rows, tblname, caption, show_time=False):
     print('\\begin{table}')
     print('\\resizebox{\\columnwidth}{!}{')
     print('\\begin{tabular}{'+('l'*len(header)+'|rrrr|r')+'}')
-  my_header = header + [''+s1+'/'+s2+'' for (s1, s2) in pairs] + ['Average']
+  my_header = header + [f'{s1}/{s2}' for (s1, s2) in pairs] + ['Average']
   print(' & '.join(my_header) + ' \\\\ \\hline \\hline')
   stats = []
   first_row = 0
   BAD = -1
+  dev_avg = 0
+  test_avg = 0
+  time_avg = 0
+  valid_num = 0
   for row_id, (num, train, strategy, template, devrows, testrows, add_hline) in enumerate(rows):
-    dev_avg = 0
-    test_avg = 0
-    time_avg = 0
-    valid_num = 0
     my_stats = []
     for (src1, src2), devrow, testrow in zip(pairs, devrows, testrows):
       filename = template.replace('SRC1', src1).replace('SRC2', src2)
       my_dev, my_test, my_time = get_bleus_and_times(filename, devrow, testrow)
-      if my_test != None:
-        my_stats.extend([my_test*100, my_time])
+      if my_test is None:
+        my_stats.extend([BAD, BAD])
       else:
-        my_stats.extend([BAD, BAD]) 
-    if all([x != BAD for x in my_stats]):
-      my_stats.extend([sum([my_stats[i] for i in [0,2,4,6]])/4, sum([my_stats[i] for i in [1,3,5,7]])/4])
+        my_stats.extend([my_test*100, my_time])
+    if all(x != BAD for x in my_stats):
+      my_stats.extend([
+          sum(my_stats[i] for i in [0, 2, 4, 6]) / 4,
+          sum(my_stats[i] for i in [1, 3, 5, 7]) / 4,
+      ])
     else:
       my_stats.extend([BAD, BAD])
     stats.append(my_stats)
-    if add_hline or len(rows)-1 == row_id:
-      max_stats = [max([x[i] for x in stats]) for i in range(10)]
+    if add_hline or len(rows) - 1 == row_id:
+      max_stats = [max(x[i] for x in stats) for i in range(10)]
       for stat_id, ((num, train, strategy, template, devrows, testrows, add_hline), my_stats) in enumerate(zip(rows[first_row:row_id+1], stats)):
         my_strs = ['\multirow{{ {} }}{{*}}{{\\rotatebox{{90}}{{ {} }}}}'.format(len(stats), train) if stat_id == 0 else '', strategy]
         for i in range(0, 10, 2):
@@ -74,13 +75,12 @@ def create_table(header, rows, tblname, caption, show_time=False):
               my_strs.append('\\textbf{{{:.1f}}} & ({:.1f})'.format(my_stats[i], my_stats[i+1]))
             else:
               my_strs.append('{:.1f} & ({:.1f})'.format(my_stats[i], my_stats[i+1]))
+          elif my_stats[i] == BAD:
+            my_strs.append('TODO')
+          elif my_stats[i] == max_stats[i]:
+            my_strs.append('\\textbf{{{:.1f}}}'.format(my_stats[i]))
           else:
-            if my_stats[i] == BAD:
-              my_strs.append('TODO')
-            elif my_stats[i] == max_stats[i]:
-              my_strs.append('\\textbf{{{:.1f}}}'.format(my_stats[i]))
-            else:
-              my_strs.append('{:.1f}'.format(my_stats[i], my_stats[i+1]))
+            my_strs.append('{:.1f}'.format(my_stats[i], my_stats[i+1]))
         print(' & '.join(my_strs) + '\\\\' + (' \\hline' if add_hline else ''))
       stats = []
       first_row = row_id+1

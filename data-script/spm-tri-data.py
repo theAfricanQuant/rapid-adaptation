@@ -8,14 +8,13 @@ for vocab_size in [8000]:
     for line in lpf:
       src1, src2 = line.strip().split()
       src12 = src1+src2
-      src12trg = src12+'_eng'
-      prefix = 'spm/{}/ted-train.orig.spm{}.{}'.format(src12, vocab_size, src12)
+      src12trg = f'{src12}_eng'
+      prefix = f'spm/{src12}/ted-train.orig.spm{vocab_size}.{src12}'
       spsrc = spm.SentencePieceProcessor()
-      spsrc.Load(prefix+'.model')
+      spsrc.Load(f'{prefix}.model')
       for src in [src1, src2]:
-        srctrg = src+'_eng'
+        srctrg = f'{src}_eng'
         for split in ['dev', 'test']:
-          with open('data/{}/ted-{}.orig.{}'.format(srctrg, split, src), 'r') as infile, \
-               open('data/{}/ted-{}.orig.spm{}.{}'.format(src12trg, split, vocab_size, src), 'w') as outfile:
+          with (open(f'data/{srctrg}/ted-{split}.orig.{src}', 'r') as infile, open(f'data/{src12trg}/ted-{split}.orig.spm{vocab_size}.{src}', 'w') as outfile):
             for line in infile:
               print(' '.join(spsrc.Encode(line.strip())), file=outfile)
